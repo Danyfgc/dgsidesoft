@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+
+  openbravo:
+    build:
+      context: .
+      dockerfile: tomcat/Dockerfile
+    image: tomcat-openbravo:8.5-jdk8
+    container_name: openbravo
+    restart: unless-stopped
+    environment:
+      CATALINA_OPTS: '-server -Xms1500M -Xmx3000M'
+      JAVA_OPTS: '-server -Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom -Xms1500M -Xmx3000M'
+      ANT_OPTS: '-Xmx1500M'
+      TZ: America/Guayaquil
+      JPDA_ADDRESS: 8000
+      JPDA_TRANSPORT: dt_socket
+    volumes:
+      - ./tomcat/context.xml:/usr/local/tomcat/conf/context.xml
+      # - ./tomcat/ecuapack_server.xml:/usr/local/tomcat/conf/server.xml
+      - webapps:/usr/local/tomcat/webapps
+      - /opt/openbravo:/opt/openbravo
+      - /srv:/srv
+    working_dir: /opt/openbravo
+    user: '1000'
+    ports:
+      - 8081:8000
+      - 8100:8080
+    networks:
+      - default
+    depends_on:
+      - postgres10
+    command: catalina.sh jpda run
+
+  postgres10:
+    image: postgres:10
+    container_name: postgres10
+    # build:
+    #   context: .
+    #   dockerfile: ./postgres/Dockerfile
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: syspass
+      TZ: America/Guayaquil
+      MAIN_USER: tad
+      MAIN_PASS: tad
+    volumes:
+      - postgres10:/var/lib/postgresql/data
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/init.sh
+      - /srv:/srv
+    working_dir: /srv/db_scripts
+    ports:
+      - 5433:5432
+    # command:
+    #   - -c shared_preload_libraries=pg_stat_statements
+    #   - -c pg_stat_statements.track=all
+    networks:
+      - default
+
+  pgadmin4:
+    image: dpage/pgadmin4
+    container_name: pgadmin4
+    restart: unless-stopped
+    environment:
+      TZ: America/Guayaquil
+      PGADMIN_DEFAULT_EMAIL: "dbadmin@email.com"
+      PGADMIN_DEFAULT_PASSWORD: "Dany1172"
+    ports:
+      - "5440:80"
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    depends_on:
+      - postgres10
+    networks:
+      - default
+
+volumes:
+  webapps:
+  postgres10:
+  pgadmin:
+
+networks:
+  default:
+    external:
+      name: docker
